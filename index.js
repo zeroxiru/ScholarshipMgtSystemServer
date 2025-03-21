@@ -792,7 +792,51 @@ app.get('/scholarships/:id/reviews', async (req, res) => {
     res.status(500).json({ error: 'An error occurred while fetching reviews.' });
   }
 });
+/**
+ * ✅ Moderator-only Route: Get All Applications
+ */
+app.get("/dashboard/all-applications", verifyToken, verifyModerator, async (req, res) => {
+  try {
+    
+    const applications = await scholarshipApplicationsCollection.find().toArray();
+    res.status(200).json(applications);
+  } catch (error) {
+    console.error("Error fetching applications:", error);
+    res.status(500).json({ message: "Failed to fetch applications", error });
+  }
+});
 
+app.patch("/dashboard/update-status/:id", async (req, res) => {
+  try {
+    const applicationId = req.params.id;
+    const query = { _id: new ObjectId(applicationId) };
+
+    // Fetch the existing application
+    const application = await db.collection("scholarshipApplications").findOne(query);
+    if (!application) {
+      return res.status(400).send("This application is not available.");
+    }
+     
+    if (application.status === "Rejected") {
+      return res.status(400).send("This application is already rejected.");
+    }
+    // Prepare the update document
+    const updateDoc = { $set: { status: "Rejected" } };
+
+    // Update the status in the database
+    const result = await db.collection("scholarshipApplications").updateOne(query, updateDoc);
+
+    if (result.modifiedCount > 0) {
+      res.status(200).json({ message: "Application status updated to Rejected." });
+    } else {
+      res.status(400).json({ message: "Failed to update application status." });
+    }
+
+  } catch (error) {
+    console.error("Error updating application status:", error);
+    res.status(500).send("Server error while updating status.");
+  }
+});
    
     
 
@@ -810,6 +854,12 @@ app.get('/scholarships/:id/reviews', async (req, res) => {
       } catch (err) {
         res.status(500).send(err)
       }
+    })
+
+    app.get('/admin-stat', verifyToken, verifyAdmin, async (req, res) => { 
+      const totalUsers = await usersCollection.estimatedDocumentCount();
+      const totalScholarships = await scholarshipsCollection.estimatedDocumentCount()
+      res.send({totalScholarships, totalUsers})
     })
 
     // Send a ping to confirm a successful connection
