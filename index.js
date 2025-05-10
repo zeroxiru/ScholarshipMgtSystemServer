@@ -59,6 +59,7 @@ async function run() {
     const applicantsCollection = db.collection('scholarshipsApplicantsData')
     const scholarshipApplicationsCollection = db.collection('scholarshipApplications');
     const reviewCollection = db.collection('reviewData');
+    const disciplineWiseCategoryCollection = db.collection('disciplineWiseCategory')
     
 
     app.post('/jwt', async (req, res) => {
@@ -218,6 +219,17 @@ async function run() {
           message: 'Failed to fetch scholarships.',
         });
       }
+    });
+
+    // app.get('/discipline-category-titles', verifyToken, verifyModerator, async(req, res) => { 
+    //   //const result = await disciplineWiseCategoryCollection.find({}, {projection: { title: 1 } }).toArray()
+    //   const result = await disciplineWiseCategoryCollection.find({}, { projection: { title: 1 } }).toArray();
+    //   res.send(result);
+    // } )
+
+    app.get('/discipline-category-titles',  async (req, res) => {
+      const result = await disciplineWiseCategoryCollection.find({}, { projection: { title: 1 } }).toArray();
+      res.send(result);
     });
     
     app.get('/scholarships', async (req, res) => {
@@ -837,8 +849,36 @@ app.patch("/dashboard/update-status/:id", async (req, res) => {
     res.status(500).send("Server error while updating status.");
   }
 });
-   
-    
+   // GET API for latest five reviews for home swiper
+   app.get("/reviews", async (req, res) => {
+    try {
+      const latestReviews = await reviewCollection
+        .find()
+        .sort({ reviewDate: -1 }) // Sort by latest reviewDate
+        .limit(5)
+        .toArray(); // Convert to array
+  
+      console.log("Fetched reviews:", latestReviews); // Debugging
+  
+      // Ensure all reviews have a valid comment field
+      const formattedReviews = latestReviews.map((review) => {
+        if (typeof review.comment === "string") {
+          const words = review.comment.split(" ");
+          if (words.length > 20) {
+            review.comment = words.slice(0, 25).join(" ") + "...";
+          }
+        }
+        console.log("Processed review:", review.comment); // Debugging
+        return review;
+      });
+  
+      res.status(200).json(formattedReviews);
+    } catch (error) {
+      console.error("Error fetching reviews:", error); // Log the error for debugging
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+  
 
    
     // Logout
